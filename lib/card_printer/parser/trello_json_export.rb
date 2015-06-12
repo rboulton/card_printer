@@ -19,21 +19,33 @@ class CardPrinter::Parser::TrelloJsonExport < CardPrinter::Parser::Base
   end
 
   def lists
-    data['lists'].map do |list|
+    data['lists'].reject { |list|
+      if list['closed'] then
+        puts "skipping closed list: #{list['name']}"
+      end
+      list['closed']
+    }.map { |list|
       List.new(list).tap do |l|
         l.cards = cards_for_list_id(l.id)
       end
-    end
+    }
   end
 
   def cards_for_list_id(list_id)
     data['cards']
       .select { |card| card['idList'] == list_id }
-      .reject { |card| if card['closed'] then puts "card #{card['name']} closed"; end; card['closed'] == true }
-      .map { |card| Card.new(card) }
+      .reject { |card|
+        if card['closed'] then
+          puts "skipping closed card #{card['name']}"
+        end
+        card['closed']
+      }.map { |card| Card.new(card) }
   end
 
   def story_from_card(list, card)
+    if card.name.size > 90 then
+      puts "warning: long card title ##{card.idShort}: #{card.name}"
+    end
     CardPrinter::Story.new(
       name: "#{card.name}",
       description: card.desc,
